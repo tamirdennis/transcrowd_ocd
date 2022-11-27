@@ -1,0 +1,42 @@
+{
+  "training": {
+    "epochs": 100000,
+    "grad_accum": 8,
+    "grad_clip": 1.0,
+    "loss": "mse"
+  },
+  "model": {
+    "weight_name": "head",
+    "name": "transcrowd"
+  },
+  "checkpoint": {
+    "checkpoint_path": "",
+    "n_checkpoint": 1
+  },
+  "diffusion": {
+    "dropout": 0.4,
+    "diffusion_num_steps": 1000,
+    "diffusion_num_steps_eval": 10,
+    "nch": 32,
+    "out_ch": 1,
+    "ch_mult": [
+      1,
+      1,
+      2,
+      2
+    ],
+    "dim_in": 1000,
+    "dim_lat_out": 768,
+    "dim_output": 1,
+    "scale": {
+      "ch": 32,
+      "in_dim": 1000,
+      "out_dim": 768
+    }
+  },
+  "overfitting": {
+    "lr_overfitting": 5e-4,
+    "n_overfitting": 3
+  }
+}
+
