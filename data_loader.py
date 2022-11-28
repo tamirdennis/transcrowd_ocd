@@ -98,9 +98,9 @@ def wrapper_dataset(config, args, device):
             batch = {'input': train_x, 'output': train_label}
             test_ds.append(deepcopy(batch))
     elif args.datatype == 'transcrowd':
-        train_file = 'D:\Masters Degree\CNN\TransCrowd/npydata\ShanghaiA_train.npy'
-        test_file = 'D:\Masters Degree\CNN\TransCrowd/npydata\ShanghaiA_test.npy'
-
+        train_file = '/home/tamirdenis/projects/TransCrowd/npydata/ShanghaiA_train.npy'
+        test_file = '/home/tamirdenis/projects/TransCrowd/npydata/ShanghaiA_test.npy'
+        
         with open(train_file, 'rb') as outfile:
             train_list = np.load(outfile).tolist()
         with open(test_file, 'rb') as outfile:
