@@ -43,12 +43,12 @@ class VisionTransformer_token(VisionTransformer):
 
     def forward(self, x):
         x = self.forward_features(x)
-        # latent_in = deepcopy(x.detach())
-        x = self.head(x)
         latent_in = deepcopy(x.detach())
-        # latent_out = deepcopy(x.detach())
-        x = self.output1(x)
+        x = self.head(x)
+        # latent_in = deepcopy(x.detach())
         latent_out = deepcopy(x.detach())
+        x = self.output1(x)
+        # latent_out = deepcopy(x.detach())
 
         return x, (latent_out, latent_in)
 
