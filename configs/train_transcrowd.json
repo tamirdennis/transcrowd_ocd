@@ -25,13 +25,13 @@
       2,
       2
     ],
-    "dim_in": 1000,
-    "dim_lat_out": 768,
+    "dim_in": 1,
+    "dim_lat_out": 1000,
     "dim_output": 1,
     "scale": {
       "ch": 32,
-      "in_dim": 1000,
-      "out_dim": 768
+      "in_dim": 1,
+      "out_dim": 1000
     }
   },
   "overfitting": {
