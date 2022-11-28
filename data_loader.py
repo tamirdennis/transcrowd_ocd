@@ -114,7 +114,7 @@ def wrapper_dataset(config, args, device):
             model = base_patch16_384_token(pretrained=False, num_classes=1000)
         else:
             model = base_patch16_384_gap(pretrained=True)
-        # model = nn.DataParallel(model, device_ids=[0])
+        model = nn.DataParallel(model, device_ids=[0, 1, 2, 3])
         model = model.cuda()
 
         # torch.set_num_threads(args.workers)
