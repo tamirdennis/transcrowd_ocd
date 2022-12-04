@@ -63,7 +63,7 @@ parser.add_argument(
 parser.add_argument('--workers', type=int, default=16,
                     help='load data workers')
 
-parser.add_argument('--gpu_id', type=str, default='0',
+parser.add_argument('--gpu_id', type=str, default='3',
                     help='gpu id')
 
 parser.add_argument('--model_type', type=str, default='token',
@@ -87,12 +87,12 @@ torch.manual_seed(123456789)
 module_path = args.backbone_path #path to desired pretrained model
 tb_path = args.tensorboard_path # path to tensorboard log
 tb_logger = tb.SummaryWriter(log_dir=tb_path)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = torch.device(f'cuda:{args.gpu_id}') if torch.cuda.is_available() else 'cpu'
 lr = args.learning_rate  # learning rate for the diffusion model & scale estimation model
 
-diffusion_model = Model(config=config).cuda()
+diffusion_model = Model(config=config).cuda(device=device)
 loss_fn = torch.nn.MSELoss()
-scale_model = Model_Scale(config=config).cuda()
+scale_model = Model_Scale(config=config).cuda(device=device)
 if args.resume_training:
     diffusion_model.load_state_dict(torch.load(args.diffusion_model_path))
     scale_model.load_state_dict(torch.load(args.scale_model_path)
