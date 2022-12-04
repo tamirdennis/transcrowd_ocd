@@ -104,6 +104,8 @@ model.load_state_dict(checkpoint['state_dict'], strict=False)
 # model.load_state_dict(torch.load(module_path))
 
 model = model.to(device)
+diffusion_model = diffusion_model.to(device)
+scale_model = scale_model.to(device)
 if config.training.loss == 'mse':
     opt_error_loss = torch.nn.MSELoss()
 elif config.training.loss == 'ce':
