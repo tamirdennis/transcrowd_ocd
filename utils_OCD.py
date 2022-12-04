@@ -5,7 +5,6 @@ import torch.nn.functional as F
 
 from nerf_utils.tiny_nerf import run_one_iter_of_tinynerf
 
-betas = torch.linspace(1e-6, 1e-2, 1000)
 # if torch.cuda.is_available():
 #     betas = betas.cuda()
 
@@ -236,7 +235,8 @@ def check_ps_wrapper(isnerf=0, named_parameter='', bmodel=None, w=0,
 
 
 def noising(x, t, padding=None, device='cuda'):
-    betas = betas.cuda(device=device)
+    betas = torch.linspace(1e-6, 1e-2, 1000).cuda(device=device)
+
     batch = t.shape[0]
     normalize = x.view(batch, -1).std(-1).unsqueeze(1).unsqueeze(1)
     x = x / normalize
@@ -259,6 +259,7 @@ def compute_alpha(beta, t):
 
 def generalized_steps(named_parameter, numstep, x, model, bmodel, batch, loss_fn, std, padding, mat_shape, isnerf=0,
                       device='cuda', **kwargs):
+    betas = torch.linspace(1e-6, 1e-2, 1000).cuda(device=device)
     betas = betas.cuda(device=device)
     with torch.no_grad():
 
