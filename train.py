@@ -27,6 +27,18 @@ noise_model = NoiseModel().to(device)
 def vgg_encode(x):
     with torch.no_grad():
         return noise_model(x.unsqueeze(0).permute(0,3,1,2).contiguous())
+
+
+def print_mem(device=0):
+    '''device is the GPU number'''
+    t = torch.cuda.get_device_properties(device).total_memory
+    r = torch.cuda.memory_reserved(device)
+    a = torch.cuda.memory_allocated(device)
+    f = r - a  # free inside reserved
+    print(f"t {t} r {r} a {a} f {f}")
+
+
+
 def train(args, config, optimizer, optimizer_scale,
         device, diffusion_model, scale_model,
         model,  train_loader, padding, mat_shape,
@@ -44,13 +56,16 @@ def train(args, config, optimizer, optimizer_scale,
     n_overfitting = config.overfitting.n_overfitting
     step = 0
     dmodel_original_weight = deepcopy(model.get_parameter(weight_name + '.weight'))
+    # print_mem()
     if args.precompute_all == 1:
         print('precomputation of overfitting to save time starts')
         ws, hs, outs = [], [], []
         for idx, batch in enumerate(train_loader):
+            # print_mem()
             optimizer_scale.zero_grad()
             batch['input'] = batch['input'].to(device)
             batch['output'] = batch['output'].to(device)
+            # print(batch['input'].shape, batch['output'].shape)
             # Overfitting encapsulation #
             weight, hfirst, outin = overfitting_batch_wrapper(
                 datatype=args.datatype,
@@ -65,6 +80,11 @@ def train(args, config, optimizer, optimizer_scale,
             hs.append(deepcopy(hfirst))
             outs.append(deepcopy(outin.detach().cpu()))
 
+        # print_mem()
+        del model
+
+        # print_mem()
+
         print('precomputation finished')
     print('Start Training')
     for epoch in range(epochs):
@@ -75,9 +95,12 @@ def train(args, config, optimizer, optimizer_scale,
         difflosslogger = 0
         optimizer_scale.zero_grad()
         for idx, batch in enumerate(train_loader):
+            # print_mem()
             optimizer_scale.zero_grad()
-            batch['input'] = batch['input'].to(device)
-            batch['output'] = batch['output'].to(device)
+            if args.precompute_all == 0:
+                batch['input'] = batch['input'].to(device)
+                batch['output'] = batch['output'].to(device)
+
             # Overfitting encapsulation #
             if args.precompute_all:
                 weight, hfirst, outin = ws[idx].to(device), hs[idx], outs[idx].to(device)
@@ -99,6 +122,7 @@ def train(args, config, optimizer, optimizer_scale,
                 encoding_out = vgg_encode(outin)
             else:
                 encoding_out = outin
+            # print(hfirst, encoding_out.shape)
             estimated_error = diffusion_model(
                 F.pad(weight_noisy, (padding[1][0], padding[1][1], padding[0][0], padding[0][1])),
                 hfirst,

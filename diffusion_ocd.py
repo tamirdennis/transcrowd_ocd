@@ -220,6 +220,8 @@ class Model_Scale(nn.Module):
                                        nn.Linear(2 * ch, 4 * ch))
         self.mlp_scale = nn.Sequential(nn.Linear(8 * ch, 4 * ch), nn.SiLU(), nn.Linear(4 * ch, ch), nn.SiLU(),
                                        nn.Linear(ch, 1), nn.Sigmoid())
+        self.latin_dropout = nn.Dropout(0.65)
+        self.lat_dropout = nn.Dropout(0.65)
 
     def forward(self, lat, outin):
         # assert x.shape[2] == x.shape[3] == self.resolutio
@@ -228,7 +230,9 @@ class Model_Scale(nn.Module):
             lat, latin = lat
         else:
             latin = outin
+        lat = self.lat_dropout(lat)
         latent = self.mlp(lat).mean(0).unsqueeze(0)
+        latin = self.latin_dropout(latin)
         latent_in = self.mlp_latin(latin).mean(0).unsqueeze(0)
         scale = self.mlp_scale(torch.cat((latent, latent_in), 1))
         return scale
@@ -262,7 +266,7 @@ class Model(nn.Module):
         attn_resolutions = [16, ]
         dropout = config.diffusion.dropout
         in_channels = 1
-        resolution = 128
+        resolution = config.diffusion.resolution
         resamp_with_conv = True
         num_timesteps = 1000
         self.config = config

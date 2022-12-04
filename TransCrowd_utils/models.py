@@ -19,10 +19,13 @@ class VisionTransformer_token(VisionTransformer):
         trunc_normal_(self.pos_embed, std=.02)
 
         self.output1 = nn.Sequential(
-            nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(self.num_classes, 1)
+            nn.Linear(84, 1)
         )
+        self.neck = nn.Linear(self.embed_dim, 120)
+        self.neck_ReLU = nn.ReLU()
+        self.real_head = nn.Linear(120, 84)
+        self.real_head_ReLU = nn.ReLU()
         self.output1.apply(self._init_weights)
 
     def forward_features(self, x):
@@ -43,14 +46,24 @@ class VisionTransformer_token(VisionTransformer):
 
     def forward(self, x):
         x = self.forward_features(x)
-        # latent_in = deepcopy(x.detach())
-        x = self.head(x)
+        x = self.neck(x)
+        x = self.neck_ReLU(x)
+        x = x.view(-1, self.num_flat_features(x))
         latent_in = deepcopy(x.detach())
-        # latent_out = deepcopy(x.detach())
-        x = self.output1(x)
+        x = self.real_head(x)
+        x = self.real_head_ReLU(x)
         latent_out = deepcopy(x.detach())
 
+        x = self.output1(x)
+
         return x, (latent_out, latent_in)
+
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
 
 
 class VisionTransformer_gap(VisionTransformer):

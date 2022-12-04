@@ -100,7 +100,7 @@ def wrapper_dataset(config, args, device):
     elif args.datatype == 'transcrowd':
         train_file = '/home/tamirdenis/projects/TransCrowd/npydata/ShanghaiA_train.npy'
         test_file = '/home/tamirdenis/projects/TransCrowd/npydata/ShanghaiA_test.npy'
-        
+
         with open(train_file, 'rb') as outfile:
             train_list = np.load(outfile).tolist()
         with open(test_file, 'rb') as outfile:
@@ -111,10 +111,10 @@ def wrapper_dataset(config, args, device):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 
         if args.model_type == 'token':
-            model = base_patch16_384_token(pretrained=False, num_classes=1000)
+            model = base_patch16_384_token(pretrained=False)
         else:
             model = base_patch16_384_gap(pretrained=True)
-        model = nn.DataParallel(model, device_ids=[0, 1, 2, 3])
+        # model = nn.DataParallel(model, device_ids=[0])
         model = model.cuda()
 
         # torch.set_num_threads(args.workers)

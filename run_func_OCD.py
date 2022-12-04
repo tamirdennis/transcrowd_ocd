@@ -15,6 +15,7 @@ from ema import EMAHelper
 import os
 import argparse
 import json
+import math
 from data_loader import wrapper_dataset
 
 
@@ -94,19 +95,22 @@ loss_fn = torch.nn.MSELoss()
 scale_model = Model_Scale(config=config).cuda()
 if args.resume_training:
     diffusion_model.load_state_dict(torch.load(args.diffusion_model_path))
-    scale_model.load_state_dict(torch.load(args.scale_model_path))
+    scale_model.load_state_dict(torch.load(args.scale_model_path)
+                                )
 train_loader, test_loader, model = wrapper_dataset(config, args, device)
+
 checkpoint = torch.load(module_path)
 model.load_state_dict(checkpoint['state_dict'], strict=False)
 # model.load_state_dict(torch.load(module_path))
+
 model = model.to(device)
 if config.training.loss == 'mse':
     opt_error_loss = torch.nn.MSELoss()
 elif config.training.loss == 'ce':
     opt_error_loss = torch.nn.CrossEntropyLoss()
-elif config.training.loss == 'own':
-    # Change according to desired objective
-    pass
+elif config.training.loss == 'l1':
+    opt_error_loss = torch.nn.L1Loss(size_average=False)
+
 optimizer = torch.optim.Adam(diffusion_model.parameters(), lr=lr)
 optimizer_scale = torch.optim.Adam(scale_model.parameters(), lr=5 * lr)
 ema_helper = EMAHelper(mu=0.9999)
@@ -152,36 +156,93 @@ else:
 
 print('*' * 100)
 ldiff, lopt, lbaseline = 0, 0, 0
-for idx, batch in enumerate(test_loader):
-    batch['input'] = batch['input'].to(device)
-    batch['output'] = batch['output'].to(device)
-    # Overfitting encapsulation #
-    weight, hfirst, outin = overfitting_batch_wrapper(
-        datatype=args.datatype,
-        bmodel=model, weight_name=weight_name,
-        bias_name=weight_name,
-        batch=batch, loss_fn=opt_error_loss,
-        n_iteration=config.overfitting.n_overfitting,
-        lr=config.overfitting.lr_overfitting,
-        verbose=False
-    )
-    diff_weight = weight - dmodel_original_weight
-    if args.datatype == 'tinynerf':
-        encoding_out = vgg_encode(outin)
-    else:
-        encoding_out = outin
-    with torch.no_grad():
-        std = scale_model(hfirst, encoding_out)
-    ldiffusion, loptimal, lbase, wdiff = generalized_steps(
-        named_parameter=weight_name, numstep=config.diffusion.diffusion_num_steps_eval,
-        x=(diff_weight.unsqueeze(0), hfirst, encoding_out), model=diffusion_model,
-        bmodel=model, batch=batch, loss_fn=opt_error_loss,
-        std=std, padding=padding,
-        mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf')
-    )
-    ldiff += ldiffusion
-    lopt += loptimal
-    lbaseline += lbase
-    print(
-        f"\rBaseline loss {lbaseline / (idx + 1)}, Overfitted loss {lopt / (idx + 1)}, Diffusion loss {ldiff / (idx + 1)}",
-        end='')
+if args.datatype != "transcrowd":
+    for idx, batch in enumerate(test_loader):
+        batch['input'] = batch['input'].to(device)
+        batch['output'] = batch['output'].to(device)
+        # Overfitting encapsulation #
+        weight, hfirst, outin = overfitting_batch_wrapper(
+            datatype=args.datatype,
+            bmodel=model, weight_name=weight_name,
+            bias_name=weight_name,
+            batch=batch, loss_fn=opt_error_loss,
+            n_iteration=config.overfitting.n_overfitting,
+            lr=config.overfitting.lr_overfitting,
+            verbose=False
+        )
+        diff_weight = weight - dmodel_original_weight
+        if args.datatype == 'tinynerf':
+            encoding_out = vgg_encode(outin)
+        else:
+            encoding_out = outin
+        with torch.no_grad():
+            std = scale_model(hfirst, encoding_out)
+        ldiffusion, loptimal, lbase, wdiff, predicted_label = generalized_steps(
+            named_parameter=weight_name, numstep=config.diffusion.diffusion_num_steps_eval,
+            x=(diff_weight.unsqueeze(0), hfirst, encoding_out), model=diffusion_model,
+            bmodel=model, batch=batch, loss_fn=opt_error_loss,
+            std=std, padding=padding,
+            mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf')
+        )
+        ldiff += ldiffusion
+        lopt += loptimal
+        lbaseline += lbase
+        print(
+            f"\rBaseline loss {lbaseline / (idx + 1)}, Overfitted loss {lopt / (idx + 1)}, Diffusion loss {ldiff / (idx + 1)}",
+            end='')
+
+else:
+    print('*' * 100)
+    mae = 0.0
+    mse = 0.0
+    for idx, batch in enumerate(test_loader):
+        batch['input'] = batch['input'].to(device)
+        if len(batch['input'].shape) == 5:
+            batch['input'] = batch['input'].squeeze(0)
+        if len(batch['input'].shape) == 3:
+            batch['input'] = batch['input'].unsqueeze(0)
+        batch['output'] = batch['output'].to(device)
+        prediction_sum = 0
+        for i in range(batch['input'].shape[0]):
+            img_i = batch['input'][i: i+1, :, :, :]
+            batch_i = {'input': img_i, 'output': batch['output']}
+
+            # Overfitting encapsulation #
+            weight, hfirst, outin = overfitting_batch_wrapper(
+                datatype=args.datatype,
+                bmodel=model, weight_name=weight_name,
+                bias_name=weight_name,
+                batch=deepcopy(batch_i), loss_fn=opt_error_loss,
+                n_iteration=2,
+                lr=config.overfitting.lr_overfitting,
+                verbose=False
+            )
+            diff_weight = weight - dmodel_original_weight
+            if args.datatype == 'tinynerf':
+                encoding_out = vgg_encode(outin)
+            else:
+                encoding_out = outin
+            with torch.no_grad():
+                std = scale_model(hfirst, encoding_out)
+            ldiffusion, loptimal, lbase, wdiff, predicted_label_i = generalized_steps(
+                named_parameter=weight_name, numstep=config.diffusion.diffusion_num_steps_eval,
+                x=(diff_weight.unsqueeze(0), hfirst, encoding_out), model=diffusion_model,
+                bmodel=model, batch=batch_i, loss_fn=opt_error_loss,
+                std=std, padding=padding,
+                mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf')
+            )
+            ldiff += ldiffusion
+            lopt += loptimal
+            lbaseline += lbase
+            prediction_sum += predicted_label_i
+
+            # print(
+            #     f"\rBaseline loss {lbaseline / (idx + 1)}, Overfitted loss {lopt / (idx + 1)}, Diffusion loss {ldiff / (idx + 1)}",
+            #     end='')
+        gt = batch['output'][0]
+        count = prediction_sum[0][0]
+        mae += abs(gt - count)
+        print(prediction_sum, batch['output'])
+    mae = mae / len(test_loader)
+    mse = math.sqrt(mse / len(test_loader))
+    print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))

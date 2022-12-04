@@ -131,14 +131,20 @@ def overfitting_batch(bmodel=None, weight_name='', bias_name='',
         if epoch == 0:
             hx, hy = h
             hfirst = copy.deepcopy((hx.detach(), hy.detach()))
-            out = copy.deepcopy(predicted_labels.detach())
-        if type(loss_fn) is type(torch.nn.MSELoss()):
+            if type(loss_fn) is type(torch.nn.L1Loss()):
+                out = copy.deepcopy(predicted_labels[0].detach())
+            else:
+                out = copy.deepcopy(predicted_labels.detach())
+        if type(loss_fn) is type(torch.nn.L1Loss()):
             loss = loss_fn(predicted_labels[0], batch['output'].float())
         else:
             loss = loss_fn(predicted_labels, batch['output'].long())
         loss.backward()
         opt.step()
-    weight = base_model.get_parameter(weight_name + '.weight').detach()
+    weight = copy.deepcopy(base_model.get_parameter(weight_name + '.weight').detach())
+    # del base_model
+    del batch['input']
+    torch.cuda.empty_cache()
     return weight, hfirst, out
 
 
@@ -216,7 +222,7 @@ def check_ps(named_parameter='', bmodel=None, w=0,
     loss = loss_fn(predicted_labels, batch['output'].long())
     ldiffusion = loss.item()
     del model
-    return ldiffusion, loptimal, lbase
+    return ldiffusion, loptimal, lbase, predicted_labels
 
 
 def check_ps_wrapper(isnerf=0, named_parameter='', bmodel=None, w=0,
@@ -281,8 +287,8 @@ def generalized_steps(named_parameter, numstep, x, model, bmodel, batch, loss_fn
             xt_next = at_next.sqrt() * x0_t + c1 * torch.randn_like(x) + c2 * et
             xs.append(xt_next.to('cpu'))
         wdiff = xs[-1]
-        ldiffusion, loptimal, lbase = check_ps_wrapper(isnerf=isnerf, named_parameter=named_parameter,
-                                                       bmodel=bmodel, w=wdiff.squeeze(), batch=batch,
-                                                       loss_fn=loss_fn, std=std, dopt=dopt
-                                                       )
-    return ldiffusion, loptimal, lbase, wdiff
+        ldiffusion, loptimal, lbase, predicted_label = check_ps_wrapper(isnerf=isnerf, named_parameter=named_parameter,
+                                                                        bmodel=bmodel, w=wdiff.squeeze(), batch=batch,
+                                                                        loss_fn=loss_fn, std=std, dopt=dopt
+                                                                        )
+    return ldiffusion, loptimal, lbase, wdiff, predicted_label
