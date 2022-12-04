@@ -111,12 +111,10 @@ def wrapper_dataset(config, args, device):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 
         if args.model_type == 'token':
-            model = base_patch16_384_token(pretrained=False)
+            model = base_patch16_384_token(pretrained=False).cuda(device=device)
         else:
-            model = base_patch16_384_gap(pretrained=True)
+            model = base_patch16_384_gap(pretrained=True).cuda(device=device)
         # model = nn.DataParallel(model, device_ids=[0])
-        model = model.cuda(device=device)
-
         # torch.set_num_threads(args.workers)
 
         train_data = pre_data(train_list, args, train=True)
