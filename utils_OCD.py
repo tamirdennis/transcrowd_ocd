@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from nerf_utils.tiny_nerf import run_one_iter_of_tinynerf
 
 betas = torch.linspace(1e-6, 1e-2, 1000)
-if torch.cuda.is_available():
-    betas = betas.cuda()
+# if torch.cuda.is_available():
+#     betas = betas.cuda()
 
 
 class ConfigWrapper(object):
@@ -235,7 +235,8 @@ def check_ps_wrapper(isnerf=0, named_parameter='', bmodel=None, w=0,
                         batch=batch, loss_fn=loss_fn, std=std, dopt=dopt)
 
 
-def noising(x, t, padding=None):
+def noising(x, t, padding=None, device='cuda'):
+    betas = betas.cuda(device=device)
     batch = t.shape[0]
     normalize = x.view(batch, -1).std(-1).unsqueeze(1).unsqueeze(1)
     x = x / normalize
@@ -257,14 +258,16 @@ def compute_alpha(beta, t):
 
 
 def generalized_steps(named_parameter, numstep, x, model, bmodel, batch, loss_fn, std, padding, mat_shape, isnerf=0,
-                      **kwargs):
+                      device='cuda', **kwargs):
+    betas = betas.cuda(device=device)
     with torch.no_grad():
+
         b = betas
         num_steps = numstep
         skip = 1000 // num_steps
         x, h, outin = x
         dopt = x
-        x = torch.randn_like(x)
+        x = torch.randn_like(x).to(device)
         seq = range(0, 1000, skip)
         n = x.size(0)
         seq_next = [-1] + list(seq[:-1])
@@ -284,7 +287,7 @@ def generalized_steps(named_parameter, numstep, x, model, bmodel, batch, loss_fn
                     kwargs.get("eta", 0) * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt()
             )
             c2 = ((1 - at_next) - c1 ** 2).sqrt()
-            xt_next = at_next.sqrt() * x0_t + c1 * torch.randn_like(x) + c2 * et
+            xt_next = at_next.sqrt() * x0_t + c1 * torch.randn_like(x).to(device) + c2 * et
             xs.append(xt_next.to('cpu'))
         wdiff = xs[-1]
         ldiffusion, loptimal, lbase, predicted_label = check_ps_wrapper(isnerf=isnerf, named_parameter=named_parameter,

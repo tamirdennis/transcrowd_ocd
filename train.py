@@ -117,7 +117,7 @@ def train(args, config, optimizer, optimizer_scale,
             diff_weight = weight - dmodel_original_weight  # calculate optimal weight difference from baseline
             t = torch.randint(low=0, high=diffusion_num_steps, size=(1,)
                               ).to(device)  # Sample random timestamp
-            weight_noisy, error, sigma = noising(diff_weight, t)
+            weight_noisy, error, sigma = noising(diff_weight, t, device=device)
             if args.datatype == 'tinynerf':
                 encoding_out = vgg_encode(outin)
             else:

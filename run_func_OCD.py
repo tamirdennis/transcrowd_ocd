@@ -184,7 +184,7 @@ if args.datatype != "transcrowd":
             x=(diff_weight.unsqueeze(0), hfirst, encoding_out), model=diffusion_model,
             bmodel=model, batch=batch, loss_fn=opt_error_loss,
             std=std, padding=padding,
-            mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf')
+            mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf'), device=device
         )
         ldiff += ldiffusion
         lopt += loptimal
@@ -231,7 +231,7 @@ else:
                 x=(diff_weight.unsqueeze(0), hfirst, encoding_out), model=diffusion_model,
                 bmodel=model, batch=batch_i, loss_fn=opt_error_loss,
                 std=std, padding=padding,
-                mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf')
+                mat_shape=mat_shape, isnerf=(args.datatype == 'tinynerf'), device=device
             )
             ldiff += ldiffusion
             lopt += loptimal
